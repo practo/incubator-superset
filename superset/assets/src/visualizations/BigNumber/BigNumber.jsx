@@ -111,7 +111,7 @@ class BigNumberVis extends React.Component {
           height: maxHeight,
         }}
       >
-        <span>{text}</span>
+        <span style={{textAlign: 'center'}}>{text}</span>
       </div>
     );
   }
@@ -138,6 +138,7 @@ class BigNumberVis extends React.Component {
         style={{
           fontSize,
           height: maxHeight,
+          textAlign: 'center',
         }}
       >
         {subheader}
