@@ -148,14 +148,14 @@ function TableVis(element, props) {
     .append('td')
     .style('background-image', function (d) {
       if (d.isMetric) {
-        const r = (colorPositiveNegative && d.val < 0) ? 150 : 0;
+        const r = (colorPositiveNegative && d.val < 0) ? 150 : 31;
         if (alignPositiveNegative) {
           const perc = Math.abs(Math.round((d.val / maxes[d.col]) * 100));
           // The 0.01 to 0.001 is a workaround for what appears to be a
           // CSS rendering bug on flat, transparent colors
           return (
-            `linear-gradient(to right, rgba(${r},0,0,0.2), rgba(${r},0,0,0.2) ${perc}%, ` +
-            `rgba(0,0,0,0.01) ${perc}%, rgba(0,0,0,0.001) 100%)`
+            `linear-gradient(to right, rgba(${r},119, 180,1.2), rgba(${r},119, 180,0.2) ${perc}%, ` +
+            `rgba(0,119, 180,0.01) ${perc}%, rgba(0,0,0,0.001) 100%)`
           );
         }
         const posExtent = Math.abs(Math.max(maxes[d.col], 0));
@@ -166,9 +166,9 @@ function TableVis(element, props) {
         // The 0.01 to 0.001 is a workaround for what appears to be a
         // CSS rendering bug on flat, transparent colors
         return (
-          `linear-gradient(to right, rgba(0,0,0,0.01), rgba(0,0,0,0.001) ${perc1}%, ` +
-          `rgba(${r},0,0,0.2) ${perc1}%, rgba(${r},0,0,0.2) ${perc1 + perc2}%, ` +
-          `rgba(0,0,0,0.01) ${perc1 + perc2}%, rgba(0,0,0,0.001) 100%)`
+          `linear-gradient(to right, rgba(31, 119, 180,0.01), rgba(31, 119, 180,0.001) ${perc1}%, ` +
+          `rgba(${r},119, 180,1.2) ${perc1}%, rgba(${r},119, 180,0.2) ${perc1 + perc2}%, ` +
+          `rgba(31, 119, 180,0.01) ${perc1 + perc2}%, rgba(0,0,0,0.001) 100%)`
         );
       }
       return null;
