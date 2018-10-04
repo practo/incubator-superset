@@ -83,8 +83,10 @@ class BigNumberVis extends React.Component {
   componentDidMount() {
       var items = document.getElementsByClassName("big_number  no_trendline");
       for (var i=0; i < items.length; i++) {
-        items[i].closest("div.dashboard-component").style.background="rgb(40, 50,140)";
-        items[i].closest("div.dashboard-component").style.color="white";
+        if(items[i].closest("div.dashboard-component")) {
+          items[i].closest("div.dashboard-component").style.background="rgb(40, 50,140)";
+          items[i].closest("div.dashboard-component").style.color="white";
+        }
       }
    }
 
