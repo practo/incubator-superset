@@ -7,6 +7,8 @@ import { brandColor } from '../../modules/colors';
 import { formatDateVerbose } from '../../modules/dates';
 import { computeMaxFontSize } from '../../modules/visUtils';
 
+import $ from 'jquery';
+
 import './BigNumber.css';
 
 const CHART_MARGIN = {
@@ -79,6 +81,14 @@ class BigNumberVis extends React.Component {
     }
     return `${names} no_trendline`;
   }
+
+  componentDidMount() {
+      var items = document.getElementsByClassName("big_number  no_trendline");
+      for (var i=0; i < items.length; i++) {
+        items[i].closest("div.dashboard-component").style.background="rgb(40, 50,140)";
+        items[i].closest("div.dashboard-component").style.color="white";
+      }
+   }
 
   createTemporaryContainer() {
     const container = document.createElement('div');
