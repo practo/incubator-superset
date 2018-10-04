@@ -7,8 +7,6 @@ import { brandColor } from '../../modules/colors';
 import { formatDateVerbose } from '../../modules/dates';
 import { computeMaxFontSize } from '../../modules/visUtils';
 
-import $ from 'jquery';
-
 import './BigNumber.css';
 
 const CHART_MARGIN = {
