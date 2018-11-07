@@ -192,7 +192,7 @@ function TableVis(element, props) {
         }
       }
     })
-    .style('cursor', d => (!d.isMetric) ? 'pointer' : '')
+    .style('cursor', d => (!d.isMetric) ? 'auto' : '')
     .html(d => d.html ? d.html : d.val);
 
   const paging = pageLength && pageLength > 0;
