@@ -442,11 +442,11 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
         'datasource_link': _('Datasource'),
     }
     search_columns = (
-        'slice_name', 'description', 'viz_type', 'datasource_name', 'owners',
+        'slice_name', 'description', 'viz_type', 'datasource_name', 'owners', 'dashboards',
     )
     list_columns = [
-        'slice_link', 'viz_type', 'datasource_link', 'creator', 'modified']
-    order_columns = ['viz_type', 'datasource_link', 'modified']
+        'slice_link', 'description', 'viz_type', 'datasource_link', 'dashboards', 'creator', 'modified']
+    order_columns = ['viz_type', 'description', 'datasource_link', 'modified']
     edit_columns = [
         'slice_name', 'description', 'viz_type', 'owners', 'dashboards',
         'params', 'cache_timeout']
