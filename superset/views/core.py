@@ -553,13 +553,13 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
     add_title = _('Add Dashboard')
     edit_title = _('Edit Dashboard')
 
-    list_columns = ['dashboard_link', 'creator', 'modified']
-    order_columns = ['modified']
+    list_columns = ['dashboard_link', 'description', 'creator', 'modified']
+    order_columns = ['description', 'modified']
     edit_columns = [
-        'dashboard_title', 'slug', 'owners', 'position_json', 'css',
+        'dashboard_title', 'slug', 'description', 'owners', 'position_json', 'css',
         'json_metadata']
     show_columns = edit_columns + ['table_names', 'slices']
-    search_columns = ('dashboard_title', 'slug', 'owners')
+    search_columns = ('dashboard_title', 'slug', 'owners', 'description')
     add_columns = edit_columns
     base_order = ('changed_on', 'desc')
     description_columns = {
@@ -593,6 +593,7 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
         'css': _('CSS'),
         'json_metadata': _('JSON Metadata'),
         'table_names': _('Underlying Tables'),
+        'description': _('Description'),
     }
 
     def pre_add(self, obj):
