@@ -65,6 +65,7 @@ window.onload = function() {
     var length = Object.keys(prJson).length;
     //console.log("length : "+length);
     if(length == 1) {
+        $("#openid_signinbox").hide();
         var url = prJson[0]["url"];
         var name = prJson[0]["name"];
         //console.log("url : "+url);
@@ -81,6 +82,8 @@ window.onload = function() {
 
         beforeSubmit();
         form.submit();
+    } else {
+        $("#openid_signinbox").show();
     }
 };
 
@@ -116,7 +119,7 @@ function registerUser() {
 </script>
 
 
-<div class="container">
+<div id="openid_signinbox" class="container" style="display:none;">
         <div id="loginbox" style="margin-top:50px;" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
             <div class="panel panel-primary" >
                     <div class="panel-heading">
@@ -126,13 +129,13 @@ function registerUser() {
 
     <form class="form" action="" method="post" name="login">
         {{form.hidden_tag()}}
-        <div class="help-block">{{_("Click on your OpenID provider belowwwww")}}:</div>
+        <div class="help-block">{{_("Click on your OpenID provider below")}}:</div>
             <center>
             <div class="center-block btn-group btn-group-lg" role="group">
             {% for pr in providers %}
                 <a href="javascript:set_openid('{{pr.url}}', '{{pr.name}}');">
-                <img src="{{url_for('appbuilder.static',filename='img/' + pr.name.lower() + '.png')}}"
-                     id="{{pr.name}}" class="img-rounded img-unselect"/>
+                <img src="{{url_for('static',filename='assets/images/' + pr.name.lower() + '.png')}}"
+                     id="{{pr.name}}" style="height:30px;" class="img-rounded img-unselect"/>
                 </a>
             {% endfor %}
         </div>
@@ -148,7 +151,7 @@ function registerUser() {
                 {{ form.username(size = 80, class = "hidden form-control") }}
             </div>
         </div>
-        <div class="control-group">
+        <div class="control-group" style="margin-left:20px;">
             <div class="controls">
                 <label class="checkbox" for="remember_me">
                     {{ form.remember_me }} Remember Me
