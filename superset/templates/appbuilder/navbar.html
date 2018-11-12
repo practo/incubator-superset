@@ -2,6 +2,13 @@
 {% set languages = appbuilder.languages %}
 {% set WARNING_MSG = appbuilder.app.config.get('WARNING_MSG') %}
 
+{% set nav = namespace(show=true) %}
+
+{% for role in current_user.roles if role|string == "Viewer" %}
+  {% set nav.show = False %}
+{% endfor %}
+
+{% if nav.show %}
 <div class="navbar navbar-static-top {{menu.extra_classes}}" role="navigation">
   <div class="container-fluid">
     <div class="navbar-header">
@@ -34,3 +41,4 @@
     </div>
   </div>
 </div>
+{% endif %}
