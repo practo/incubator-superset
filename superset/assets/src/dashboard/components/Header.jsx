@@ -200,14 +200,14 @@ class Header extends React.PureComponent {
             onSaveTitle={this.handleChangeText}
             showTooltip={false}
           />
-          <span className="favstar">
+          {/* <span className="favstar">
             <FaveStar
               itemId={dashboardInfo.id}
               fetchFaveStar={this.props.fetchFaveStar}
               saveFaveStar={this.props.saveFaveStar}
               isStarred={this.props.isStarred}
             />
-          </span>
+          </span> */}
         </div>
 
         <div className="button-container">
