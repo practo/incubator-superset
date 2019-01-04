@@ -350,6 +350,12 @@ dashboard_user = Table(
     Column('dashboard_id', Integer, ForeignKey('dashboards.id')),
 )
 
+dashboard_role = Table(
+    'dashboard_role', metadata,
+    Column('id', Integer, primary_key=True),
+    Column('role_id', Integer, ForeignKey('ab_role.id')),
+    Column('dashboard_id', Integer, ForeignKey('dashboards.id')),
+)
 
 class Dashboard(Model, AuditMixinNullable, ImportMixin):
 
@@ -363,15 +369,23 @@ class Dashboard(Model, AuditMixinNullable, ImportMixin):
     css = Column(Text)
     json_metadata = Column(Text)
     slug = Column(String(255), unique=True)
+    perm = Column(String(1500))
     slices = relationship(
         'Slice', secondary=dashboard_slices, backref='dashboards')
     owners = relationship(security_manager.user_model, secondary=dashboard_user)
+    roles = relationship(security_manager.role_model,secondary=dashboard_role,
+        backref='dashboards',
+    )
 
     export_fields = ('dashboard_title', 'position_json', 'json_metadata',
                      'description', 'css', 'slug')
 
     def __repr__(self):
         return self.dashboard_title
+
+    def get_perm(self):
+        return (
+            '[{obj.dashboard_title}].[{obj.description}].(id:{obj.id})').format(obj=self)
 
     @property
     def table_names(self):
@@ -610,6 +624,10 @@ class Dashboard(Model, AuditMixinNullable, ImportMixin):
             'dashboards': copied_dashboards,
             'datasources': eager_datasources,
         }, cls=utils.DashboardEncoder, indent=4)
+
+
+sqla.event.listen(Dashboard, 'after_insert', security_manager.set_dashboard_perm)
+sqla.event.listen(Dashboard, 'after_update', security_manager.set_dashboard_perm)
 
 
 class Database(Model, AuditMixinNullable, ImportMixin):

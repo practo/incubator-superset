@@ -78,6 +78,11 @@ def get_database_access_error_msg(database_name):
     return __('This view requires the database %(name)s or '
               '`all_datasource_access` permission', name=database_name)
 
+def get_dashboard_access_error_msg(dashboard_title):
+    return __(
+        "Sorry, you don't have permission to access the '%(name)s' dashboard",
+        name=dashboard_title,
+    )
 
 def json_success(json_msg, status=200):
     return Response(json_msg, status=status, mimetype='application/json')
@@ -102,11 +107,14 @@ class DashboardFilter(SupersetFilter):
     """List dashboards for which users have access to at least one slice or are owners"""
 
     def apply(self, query, func):  # noqa
-        if security_manager.all_datasource_access():
+        if security_manager.all_datasource_access() or security_manager.all_dashboard_access():
             return query
         Slice = models.Slice  # noqa
         Dash = models.Dashboard  # noqa
         User = security_manager.user_model
+
+        dashboard_perms = self.get_view_menus('dashboard_access')
+
         # TODO(bogdan): add `schema_access` support here
         datasource_perms = self.get_view_menus('datasource_access')
         slice_ids_qry = (
@@ -120,8 +128,18 @@ class DashboardFilter(SupersetFilter):
             .join(Dash.owners)
             .filter(User.id == User.get_user_id())
         )
+        # query = query.filter(
+        #     or_(Dash.id.in_(
+        #         db.session.query(Dash.id)
+        #         .distinct()
+        #         .join(Dash.slices)
+        #         .filter(Slice.id.in_(slice_ids_qry)),
+        #     ), Dash.id.in_(owner_ids_qry)),
+        # )
         query = query.filter(
-            or_(Dash.id.in_(
+            sqla.or_(
+            models.Dashboard.perm.in_(dashboard_perms)
+            , Dash.id.in_(
                 db.session.query(Dash.id)
                 .distinct()
                 .join(Dash.slices)
@@ -556,9 +574,9 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
     list_columns = ['dashboard_link', 'description', 'creator', 'modified']
     order_columns = ['description', 'modified']
     edit_columns = [
-        'dashboard_title', 'slug', 'description', 'owners', 'position_json', 'css',
+        'dashboard_title', 'slug', 'description', 'owners', 'roles', 'position_json', 'css',
         'json_metadata']
-    show_columns = edit_columns + ['table_names', 'slices']
+    show_columns = edit_columns + ['table_names', 'slices', 'perm']
     search_columns = ('dashboard_title', 'slug', 'owners', 'description')
     add_columns = edit_columns
     base_order = ('changed_on', 'desc')
@@ -579,6 +597,7 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
             'is exposed here for reference and for power users who may '
             'want to alter specific parameters.'),
         'owners': _('Owners is a list of users who can alter the dashboard.'),
+        'roles': _('A list of roles that have access to this dashboard.'),
     }
     base_filters = [['slice', DashboardFilter, lambda: []]]
     label_columns = {
@@ -587,6 +606,7 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
         'slug': _('Slug'),
         'slices': _('Charts'),
         'owners': _('Owners'),
+        'roles': _('Roles'),
         'creator': _('Creator'),
         'modified': _('Modified'),
         'position_json': _('Position JSON'),
@@ -608,6 +628,7 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
         owners = [o for o in obj.owners]
         for slc in obj.slices:
             slc.owners = list(set(owners) | set(slc.owners))
+        security_manager.merge_perm('database_access', db.perm)
 
     def pre_update(self, obj):
         check_ownership(obj)
@@ -1483,6 +1504,7 @@ class Superset(BaseSupersetView):
                     dash.dashboard_title,
                     slc.slice_name),
                 'info')
+            security_manager.merge_perm('dashboard_access', dash.perm)
 
         if dash and slc not in dash.slices:
             dash.slices.append(slc)
@@ -1632,6 +1654,7 @@ class Superset(BaseSupersetView):
         else:
             dash.slices = original_dash.slices
         dash.params = original_dash.params
+        dash.roles = original_dash.roles
 
         self._set_dash_metadata(dash, data)
         session.add(dash)
@@ -1817,6 +1840,7 @@ class Superset(BaseSupersetView):
             .order_by(M.Log.dttm.desc())
             .limit(limit)
         )
+        superset_can_explore = security_manager.can_access('can_explore', 'Superset')
         payload = []
         for log in qry.all():
             item_url = None
@@ -2138,6 +2162,13 @@ class Superset(BaseSupersetView):
                     return redirect(
                         'superset/request_access/?'
                         'dashboard_id={dash.id}&'.format(**locals()))
+
+        # if not security_manager.dashboard_access(dash):
+        #     flash(
+        #         __(get_dashboard_access_error_msg(dash.dashboard_title)),
+        #         'danger')
+        #     return redirect(
+        #         'dashboard/list/')
 
         dash_edit_perm = check_ownership(dash, raise_if_false=False) and \
             security_manager.can_access('can_save_dash', 'Superset')
