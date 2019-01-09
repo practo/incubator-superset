@@ -651,13 +651,14 @@ class DashboardModelViewAsync(DashboardModelView):  # noqa
     route_base = '/dashboardasync'
     list_columns = [
         'id', 'dashboard_link', 'creator', 'modified', 'dashboard_title',
-        'changed_on', 'url', 'changed_by_name',
+        'changed_on', 'url', 'changed_by_name', 'description',
     ]
     label_columns = {
         'dashboard_link': _('Dashboard'),
         'dashboard_title': _('Title'),
         'creator': _('Creator'),
         'modified': _('Modified'),
+        'description': _('Description'),
     }
 
 
