@@ -1425,6 +1425,7 @@ class Superset(BaseSupersetView):
             datasource_id, datasource_type, datasource_name):
         """Save or overwrite a slice"""
         slice_name = args.get('slice_name')
+        slice_desc = args.get('description')
         action = args.get('action')
         form_data, _ = self.get_form_data()
 
@@ -1439,6 +1440,7 @@ class Superset(BaseSupersetView):
         slc.datasource_type = datasource_type
         slc.datasource_id = datasource_id
         slc.slice_name = slice_name
+        slc.description = slice_desc
 
         if action in ('saveas') and slice_add_perm:
             self.save_slice(slc)
@@ -1477,7 +1479,8 @@ class Superset(BaseSupersetView):
 
             dash = models.Dashboard(
                 dashboard_title=request.args.get('new_dashboard_name'),
-                owners=[g.user] if g.user else [])
+                description=request.args.get('new_dashboard_desc'),
+                owners=[g.user] if g.user else [])            
             flash(
                 'Dashboard [{}] just got created and slice [{}] was added '
                 'to it'.format(
