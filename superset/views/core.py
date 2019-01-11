@@ -445,7 +445,7 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
         'slice_name', 'description', 'viz_type', 'datasource_name', 'owners', 'dashboards',
     )
     list_columns = [
-        'slice_link', 'description', 'viz_type', 'datasource_link', 'dashboards', 'creator', 'modified']
+        'slice_link', 'description', 'viz_type', 'datasource_link', 'database_name', 'dashboards', 'creator', 'modified']
     order_columns = ['viz_type', 'description', 'datasource_link', 'modified']
     edit_columns = [
         'slice_name', 'description', 'viz_type', 'owners', 'dashboards',
@@ -498,7 +498,7 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
     def add(self):
         datasources = ConnectorRegistry.get_all_datasources(db.session)
         datasources = [
-            {'value': str(d.id) + '__' + d.type, 'label': repr(d)}
+            {'value': str(d.id) + '__' + d.type, 'label': d.database_name + '.' + repr(d)}
             for d in datasources
         ]
         return self.render_template(
@@ -651,13 +651,14 @@ class DashboardModelViewAsync(DashboardModelView):  # noqa
     route_base = '/dashboardasync'
     list_columns = [
         'id', 'dashboard_link', 'creator', 'modified', 'dashboard_title',
-        'changed_on', 'url', 'changed_by_name',
+        'changed_on', 'url', 'changed_by_name', 'description',
     ]
     label_columns = {
         'dashboard_link': _('Dashboard'),
         'dashboard_title': _('Title'),
         'creator': _('Creator'),
         'modified': _('Modified'),
+        'description': _('Description'),
     }
 
 
@@ -1424,6 +1425,7 @@ class Superset(BaseSupersetView):
             datasource_id, datasource_type, datasource_name):
         """Save or overwrite a slice"""
         slice_name = args.get('slice_name')
+        slice_desc = args.get('description')
         action = args.get('action')
         form_data, _ = self.get_form_data()
 
@@ -1438,6 +1440,7 @@ class Superset(BaseSupersetView):
         slc.datasource_type = datasource_type
         slc.datasource_id = datasource_id
         slc.slice_name = slice_name
+        slc.description = slice_desc
 
         if action in ('saveas') and slice_add_perm:
             self.save_slice(slc)
@@ -1476,7 +1479,8 @@ class Superset(BaseSupersetView):
 
             dash = models.Dashboard(
                 dashboard_title=request.args.get('new_dashboard_name'),
-                owners=[g.user] if g.user else [])
+                description=request.args.get('new_dashboard_desc'),
+                owners=[g.user] if g.user else [])            
             flash(
                 'Dashboard [{}] just got created and slice [{}] was added '
                 'to it'.format(

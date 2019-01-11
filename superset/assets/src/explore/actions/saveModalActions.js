@@ -21,7 +21,8 @@ export function fetchDashboards(userId) {
       success: (data) => {
         const choices = [];
         for (let i = 0; i < data.pks.length; i++) {
-          choices.push({ value: data.pks[i], label: data.result[i].dashboard_title });
+          let dashval = 'Title : ' + data.result[i].dashboard_title + ', Desc : ' + data.result[i].description;
+          choices.push({ value: data.pks[i], label: dashval });
         }
         dispatch(fetchDashboardsSucceeded(choices));
       },

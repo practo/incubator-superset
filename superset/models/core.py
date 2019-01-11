@@ -180,6 +180,11 @@ class Slice(Model, AuditMixinNullable, ImportMixin):
         datasource = self.datasource
         return datasource.link if datasource else None
 
+    def database_name(self):
+        datasource = self.datasource
+        mydb = db.session.query(Database).filter_by(id=datasource.database_id).one()
+        return mydb.database_name if mydb else None
+
     def datasource_name_text(self):
         # pylint: disable=no-member
         datasource = self.datasource
