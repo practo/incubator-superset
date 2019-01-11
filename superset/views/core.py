@@ -498,7 +498,7 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
     def add(self):
         datasources = ConnectorRegistry.get_all_datasources(db.session)
         datasources = [
-            {'value': str(d.id) + '__' + d.type, 'label': repr(d)}
+            {'value': str(d.id) + '__' + d.type, 'label': d.database_name + '.' + repr(d)}
             for d in datasources
         ]
         return self.render_template(
