@@ -4,6 +4,7 @@ import VirtualizedSelect from 'react-virtualized-select';
 import { Creatable } from 'react-select';
 import { Button } from 'react-bootstrap';
 
+// import ReactVirtualizedSelect from './ReactVirtualizedSelect';
 import DateFilterControl from '../../explore/components/controls/DateFilterControl';
 import ControlRow from '../../explore/components/ControlRow';
 import Control from '../../explore/components/Control';
@@ -213,7 +214,12 @@ class FilterBox extends React.Component {
                 `lightgrey ${perc}%, rgba(0,0,0,0) ${perc}%`
               );
               const style = {
-                padding: '2px 5px',
+                padding: '3px 5px',
+                // //height: '35px',
+                // position: 'absolute',
+                // // top: '0px',
+                // left: '0px',
+                // width: '100%',
               };
               return { value: opt.id, label: opt.id, style };
             })}

@@ -481,6 +481,7 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
         'slice_name': _('Name'),
         'table': _('Table'),
         'viz_type': _('Visualization Type'),
+        'database_name':_('Database'),
     }
 
     def pre_add(self, obj):

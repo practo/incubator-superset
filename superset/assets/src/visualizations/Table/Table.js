@@ -6,6 +6,8 @@ import 'datatables.net-bs/css/dataTables.bootstrap.css';
 import dompurify from 'dompurify';
 import { fixDataTableBodyHeight, d3TimeFormatPreset } from '../../modules/utils';
 import './Table.css';
+import { format as d3Format } from 'd3-format';
+import { getNumberFormatterRegistry, formatNumber, NumberFormatter } from '@superset-ui/number-format';
 
 dt(window, $);
 
@@ -47,6 +49,12 @@ const propTypes = {
 
 const formatValue = d3.format('0,000');
 const formatPercent = d3.format('.3p');
+
+getNumberFormatterRegistry().registerValue('my_format', new NumberFormatter({
+  id: 'my_format',
+  formatFunc: v => `ر.س ${v}`,
+}));
+
 function NOOP() {}
 
 function TableVis(element, props) {
@@ -129,7 +137,43 @@ function TableVis(element, props) {
         html = `<span class="like-pre">${dompurify.sanitize(val)}</span>`;
       }
       if (isMetric) {
+        // d3.json('https://unpkg.com/d3-format@1/locale/ru-RU.json', function (error, locale) {
+        //   if (error) throw error;
+        //   console.log('locale : ' + JSON.stringify(locale));
+
+        //   var jk = d3.formatLocale(JSON.stringify(locale));
+        //   var sa = jk.numberFormat("$,.2f");
+        
+        //   console.log('vvbnvbn : ' + sa(332));
+        //   var format = d3.format("$,");
+        //   console.log(format(1234.56)); // 1 234,56 руб.
+        // });
+        var NL = d3.locale ({
+          "decimal": ".",
+          "thousands": ",",
+          "grouping": [3],
+          "currency": ["ر.س", ""],
+          "dateTime": "%a %b %e %X %Y",
+          "date": "%m/%d/%Y",
+          "time": "%H:%M:%S",
+          "periods": ["AM", "PM"],
+          "days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "shortDays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+          "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+          "shortMonths": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        });
+        
+        var eur = NL.numberFormat("$.2f");
+        
+        console.log('sdfsdfsdf : ' + eur(val));
+        console.log('formatNumber : ' + formatNumber('my_format', val));
+        // d3.json('https://unpkg.com/d3-format@1/locale/de-DE.json', function (locale) {
+        //   d3.locale(locale);
+        //   var format = d3.format("$,.2f");
+        //   console.log(format(1289.56));
+        // });
         html = d3.format(format || '0.3s')(val);
+        html = 'ر.س ' + html;
       }
       if (key[0] === '%') {
         html = formatPercent(val);
