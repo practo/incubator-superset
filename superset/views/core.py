@@ -456,11 +456,11 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
         'datasource_link': _('Datasource'),
     }
     search_columns = (
-        'slice_name', 'description', 'viz_type', 'datasource_name', 'owners',
+        'slice_name', 'description', 'viz_type', 'datasource_name', 'owners', 'dashboards',
     )
     list_columns = [
-        'slice_link', 'viz_type', 'datasource_link', 'creator', 'modified']
-    order_columns = ['viz_type', 'datasource_link', 'modified']
+        'slice_link', 'description', 'viz_type', 'datasource_link', 'database_name', 'dashboards', 'creator', 'modified']
+    order_columns = ['viz_type', 'description', 'datasource_link', 'modified']
     edit_columns = [
         'slice_name', 'description', 'viz_type', 'owners', 'dashboards',
         'params', 'cache_timeout']
@@ -512,7 +512,7 @@ class SliceModelView(SupersetModelView, DeleteMixin):  # noqa
     def add(self):
         datasources = ConnectorRegistry.get_all_datasources(db.session)
         datasources = [
-            {'value': str(d.id) + '__' + d.type, 'label': repr(d)}
+            {'value': str(d.id) + '__' + d.type, 'label': d.database_name + '.' + repr(d)}
             for d in datasources
         ]
         return self.render_template(
@@ -567,13 +567,13 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
     add_title = _('Add Dashboard')
     edit_title = _('Edit Dashboard')
 
-    list_columns = ['dashboard_link', 'creator', 'modified']
-    order_columns = ['modified']
+    list_columns = ['dashboard_link', 'description', 'creator', 'modified']
+    order_columns = ['description', 'modified']
     edit_columns = [
-        'dashboard_title', 'slug', 'owners', 'position_json', 'css',
+        'dashboard_title', 'slug', 'description', 'owners', 'position_json', 'css',
         'json_metadata']
     show_columns = edit_columns + ['table_names', 'slices']
-    search_columns = ('dashboard_title', 'slug', 'owners')
+    search_columns = ('dashboard_title', 'slug', 'owners', 'description')
     add_columns = edit_columns
     base_order = ('changed_on', 'desc')
     description_columns = {
@@ -607,6 +607,7 @@ class DashboardModelView(SupersetModelView, DeleteMixin):  # noqa
         'css': _('CSS'),
         'json_metadata': _('JSON Metadata'),
         'table_names': _('Underlying Tables'),
+        'description': _('Description'),
     }
 
     def pre_add(self, obj):
@@ -666,13 +667,14 @@ class DashboardModelViewAsync(DashboardModelView):  # noqa
     route_base = '/dashboardasync'
     list_columns = [
         'id', 'dashboard_link', 'creator', 'modified', 'dashboard_title',
-        'changed_on', 'url', 'changed_by_name',
+        'changed_on', 'url', 'changed_by_name', 'description',
     ]
     label_columns = {
         'dashboard_link': _('Dashboard'),
         'dashboard_title': _('Title'),
         'creator': _('Creator'),
         'modified': _('Modified'),
+        'description': _('Description'),
     }
 
 
@@ -1402,6 +1404,7 @@ class Superset(BaseSupersetView):
             datasource_id, datasource_type, datasource_name):
         """Save or overwrite a slice"""
         slice_name = args.get('slice_name')
+        slice_desc = args.get('description')
         action = args.get('action')
         form_data, _ = self.get_form_data()
 
@@ -1416,6 +1419,7 @@ class Superset(BaseSupersetView):
         slc.datasource_type = datasource_type
         slc.datasource_id = datasource_id
         slc.slice_name = slice_name
+        slc.description = slice_desc
 
         if action in ('saveas') and slice_add_perm:
             self.save_slice(slc)
@@ -1454,7 +1458,8 @@ class Superset(BaseSupersetView):
 
             dash = models.Dashboard(
                 dashboard_title=request.args.get('new_dashboard_name'),
-                owners=[g.user] if g.user else [])
+                description=request.args.get('new_dashboard_desc'),
+                owners=[g.user] if g.user else [])            
             flash(
                 'Dashboard [{}] just got created and slice [{}] was added '
                 'to it'.format(
