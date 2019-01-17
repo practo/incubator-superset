@@ -1,8 +1,28 @@
-import d3 from 'd3';
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import PropTypes from 'prop-types';
-import { colorScalerFactory } from '../../modules/colors';
+import { extent as d3Extent, range as d3Range } from 'd3-array';
+import { select as d3Select } from 'd3-selection';
+import { getSequentialSchemeRegistry } from '@superset-ui/color';
+import { getNumberFormatter } from '@superset-ui/number-format';
+import { getTimeFormatter } from '@superset-ui/time-format';
 import CalHeatMap from '../../../vendor/cal-heatmap/cal-heatmap';
-import { d3TimeFormatPreset, d3FormatPreset } from '../../modules/utils';
 import { UTC } from '../../modules/dates';
 import '../../../vendor/cal-heatmap/cal-heatmap.css';
 import './Calendar.css';
@@ -53,10 +73,10 @@ function Calendar(element, props) {
     verboseMap,
   } = props;
 
-  const valueFormatter = d3FormatPreset(valueFormat);
-  const timeFormatter = d3TimeFormatPreset(timeFormat);
+  const valueFormatter = getNumberFormatter(valueFormat);
+  const timeFormatter = getTimeFormatter(timeFormat);
 
-  const container = d3.select(element)
+  const container = d3Select(element)
     .style('height', height);
   container.selectAll('*').remove();
   const div = container.append('div');
@@ -80,11 +100,13 @@ function Calendar(element, props) {
       calContainer.text(`Metric: ${verboseMap[metric] || metric}`);
     }
     const timestamps = metricsData[metric];
-    const extents = d3.extent(Object.keys(timestamps), key => timestamps[key]);
+    const extents = d3Extent(Object.keys(timestamps), key => timestamps[key]);
     const step = (extents[1] - extents[0]) / (steps - 1);
-    const colorScale = colorScalerFactory(linearColorScheme, null, null, extents);
+    const colorScale = getSequentialSchemeRegistry()
+      .get(linearColorScheme)
+      .createLinearScale(extents);
 
-    const legend = d3.range(steps)
+    const legend = d3Range(steps)
       .map(i => extents[0] + (step * i));
     const legendColors = legend.map(colorScale);
 
@@ -93,7 +115,7 @@ function Calendar(element, props) {
     cal.init({
       start: UTCTS(data.start),
       data: timestamps,
-      itemSelector: calContainer[0][0],
+      itemSelector: calContainer.node(),
       legendVerticalPosition: 'top',
       cellSize,
       cellPadding,

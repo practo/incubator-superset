@@ -1,10 +1,28 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
-import $ from 'jquery';
+import { SupersetClient } from '@superset-ui/connection';
+
 import DeckGLContainer from '../DeckGLContainer';
 import { getExploreLongUrl } from '../../../explore/exploreUtils';
 import layerGenerators from '../layers';
-import createAdaptor from '../createAdaptor';
 
 const propTypes = {
   formData: PropTypes.object.isRequired,
@@ -48,19 +66,22 @@ class DeckMulti extends React.PureComponent {
         },
       };
 
-      const url = getExploreLongUrl(subsliceCopy.form_data, 'json');
-      $.get(url, (data) => {
-        const layer = layerGenerators[subsliceCopy.form_data.viz_type](
-          subsliceCopy.form_data,
-          data,
-        );
-        this.setState({
-          subSlicesLayers: {
-            ...this.state.subSlicesLayers,
-            [subsliceCopy.slice_id]: layer,
-          },
-        });
-      });
+      SupersetClient.get({
+          endpoint: getExploreLongUrl(subsliceCopy.form_data, 'json'),
+        })
+        .then(({ json }) => {
+          const layer = layerGenerators[subsliceCopy.form_data.viz_type](
+            subsliceCopy.form_data,
+            json,
+          );
+          this.setState({
+            subSlicesLayers: {
+              ...this.state.subSlicesLayers,
+              [subsliceCopy.slice_id]: layer,
+            },
+          });
+        })
+        .catch(() => {});
     });
   }
 
@@ -68,7 +89,7 @@ class DeckMulti extends React.PureComponent {
     const { payload, viewport, formData, setControlValue } = this.props;
     const { subSlicesLayers } = this.state;
 
-    const layers = Object.keys(subSlicesLayers).map(k => subSlicesLayers[k]);
+    const layers = Object.values(subSlicesLayers);
 
     return (
       <DeckGLContainer
@@ -84,4 +105,4 @@ class DeckMulti extends React.PureComponent {
 
 DeckMulti.propTypes = propTypes;
 
-export default createAdaptor(DeckMulti);
+export default DeckMulti;

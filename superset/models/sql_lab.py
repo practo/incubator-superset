@@ -1,3 +1,19 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 # pylint: disable=C,R,W
 """A collection of ORM sqlalchemy models for SQL Lab"""
 from datetime import datetime
@@ -5,7 +21,6 @@ import re
 
 from flask import Markup
 from flask_appbuilder import Model
-from future.standard_library import install_aliases
 import sqlalchemy as sqla
 from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text,
@@ -13,14 +28,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, relationship
 
 from superset import security_manager
-from superset.models.helpers import AuditMixinNullable
-from superset.utils import QueryStatus, user_label
-
-install_aliases()
+from superset.models.helpers import AuditMixinNullable, ExtraJSONMixin
+from superset.utils.core import QueryStatus, user_label
 
 
-class Query(Model):
-    """ORM model for SQL query"""
+class Query(Model, ExtraJSONMixin):
+    """ORM model for SQL query
+
+    Now that SQL Lab support multi-statement execution, an entry in this
+    table may represent multiple SQL statements executed sequentially"""
 
     __tablename__ = 'query'
     id = Column(Integer, primary_key=True)
@@ -108,6 +124,7 @@ class Query(Model):
             'limit_reached': self.limit_reached,
             'resultsKey': self.results_key,
             'trackingUrl': self.tracking_url,
+            'extra': self.extra,
         }
 
     @property
@@ -118,7 +135,7 @@ class Query(Model):
         tab = (self.tab_name.replace(' ', '_').lower()
                if self.tab_name else 'notab')
         tab = re.sub(r'\W+', '', tab)
-        return 'sqllab_{tab}_{ts}'.format(**locals())
+        return f'sqllab_{tab}_{ts}'
 
 
 class SavedQuery(Model, AuditMixinNullable):
@@ -143,8 +160,8 @@ class SavedQuery(Model, AuditMixinNullable):
 
     @property
     def pop_tab_link(self):
-        return Markup("""
+        return Markup(f"""
             <a href="/superset/sqllab?savedQueryId={self.id}">
                 <i class="fa fa-link"></i>
             </a>
-        """.format(**locals()))
+        """)

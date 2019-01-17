@@ -1,3 +1,19 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 # pylint: disable=C,R,W
 from datetime import datetime
 import logging
@@ -9,23 +25,25 @@ import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy import (
     and_, asc, Boolean, Column, DateTime, desc, ForeignKey, Integer, or_,
-    select, String, Text,
+    select, String, Table, Text,
 )
+from sqlalchemy.exc import CompileError
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql import column, literal_column, table, text
 from sqlalchemy.sql.expression import TextAsFrom
 import sqlparse
 
-from superset import app, db, import_util, security_manager, utils
+from superset import app, db, security_manager
 from superset.connectors.base.models import BaseColumn, BaseDatasource, BaseMetric
 from superset.jinja_context import get_template_processor
 from superset.models.annotations import Annotation
 from superset.models.core import Database
 from superset.models.helpers import QueryResult
-from superset.utils import DTTM_ALIAS, QueryStatus
+from superset.utils import core as utils, import_datasource
 
 config = app.config
+metadata = Model.metadata  # pylint: disable=no-member
 
 
 class AnnotationDatasource(BaseDatasource):
@@ -44,11 +62,11 @@ class AnnotationDatasource(BaseDatasource):
             qry = qry.filter(Annotation.start_dttm >= query_obj['from_dttm'])
         if query_obj['to_dttm']:
             qry = qry.filter(Annotation.end_dttm <= query_obj['to_dttm'])
-        status = QueryStatus.SUCCESS
+        status = utils.QueryStatus.SUCCESS
         try:
             df = pd.read_sql_query(qry.statement, db.engine)
         except Exception as e:
-            status = QueryStatus.FAILED
+            status = utils.QueryStatus.FAILED
             logging.exception(e)
             error_message = (
                 utils.error_msg_from_exception(e))
@@ -84,7 +102,7 @@ class TableColumn(Model, BaseColumn):
 
     export_fields = (
         'table_id', 'column_name', 'verbose_name', 'is_dttm', 'is_active',
-        'type', 'groupby', 'count_distinct', 'sum', 'avg', 'max', 'min',
+        'type', 'groupby',
         'filterable', 'expression', 'description', 'python_date_format',
         'database_expression',
     )
@@ -120,7 +138,7 @@ class TableColumn(Model, BaseColumn):
         pdf = self.python_date_format
         is_epoch = pdf in ('epoch_s', 'epoch_ms')
         if not self.expression and not time_grain and not is_epoch:
-            return column(self.column_name, type_=DateTime).label(DTTM_ALIAS)
+            return column(self.column_name, type_=DateTime).label(utils.DTTM_ALIAS)
 
         expr = self.expression or self.column_name
         if is_epoch:
@@ -134,7 +152,7 @@ class TableColumn(Model, BaseColumn):
             grain = self.table.database.grains_dict().get(time_grain)
             if grain:
                 expr = grain.function.format(col=expr)
-        return literal_column(expr, type_=DateTime).label(DTTM_ALIAS)
+        return literal_column(expr, type_=DateTime).label(utils.DTTM_ALIAS)
 
     @classmethod
     def import_obj(cls, i_column):
@@ -142,7 +160,7 @@ class TableColumn(Model, BaseColumn):
             return db.session.query(TableColumn).filter(
                 TableColumn.table_id == lookup_column.table_id,
                 TableColumn.column_name == lookup_column.column_name).first()
-        return import_util.import_simple_obj(db.session, i_column, lookup_obj)
+        return import_datasource.import_simple_obj(db.session, i_column, lookup_obj)
 
     def dttm_sql_literal(self, dttm):
         """Convert datetime object to a SQL expression string
@@ -166,43 +184,6 @@ class TableColumn(Model, BaseColumn):
             s = self.table.database.db_engine_spec.convert_dttm(
                 self.type or '', dttm)
             return s or "'{}'".format(dttm.strftime('%Y-%m-%d %H:%M:%S.%f'))
-
-    def get_metrics(self):
-        # TODO deprecate, this is not needed since MetricsControl
-        metrics = []
-        M = SqlMetric  # noqa
-        quoted = self.column_name
-        if self.sum:
-            metrics.append(M(
-                metric_name='sum__' + self.column_name,
-                metric_type='sum',
-                expression='SUM({})'.format(quoted),
-            ))
-        if self.avg:
-            metrics.append(M(
-                metric_name='avg__' + self.column_name,
-                metric_type='avg',
-                expression='AVG({})'.format(quoted),
-            ))
-        if self.max:
-            metrics.append(M(
-                metric_name='max__' + self.column_name,
-                metric_type='max',
-                expression='MAX({})'.format(quoted),
-            ))
-        if self.min:
-            metrics.append(M(
-                metric_name='min__' + self.column_name,
-                metric_type='min',
-                expression='MIN({})'.format(quoted),
-            ))
-        if self.count_distinct:
-            metrics.append(M(
-                metric_name='count_distinct__' + self.column_name,
-                metric_type='count_distinct',
-                expression='COUNT(DISTINCT {})'.format(quoted),
-            ))
-        return {m.metric_name: m for m in metrics}
 
 
 class SqlMetric(Model, BaseMetric):
@@ -237,13 +218,24 @@ class SqlMetric(Model, BaseMetric):
         ).format(obj=self,
                  parent_name=self.table.full_name) if self.table else None
 
+    def get_perm(self):
+        return self.perm
+
     @classmethod
     def import_obj(cls, i_metric):
         def lookup_obj(lookup_metric):
             return db.session.query(SqlMetric).filter(
                 SqlMetric.table_id == lookup_metric.table_id,
                 SqlMetric.metric_name == lookup_metric.metric_name).first()
-        return import_util.import_simple_obj(db.session, i_metric, lookup_obj)
+        return import_datasource.import_simple_obj(db.session, i_metric, lookup_obj)
+
+
+sqlatable_user = Table(
+    'sqlatable_user', metadata,
+    Column('id', Integer, primary_key=True),
+    Column('user_id', Integer, ForeignKey('ab_user.id')),
+    Column('table_id', Integer, ForeignKey('tables.id')),
+)
 
 
 class SqlaTable(Model, BaseDatasource):
@@ -254,6 +246,7 @@ class SqlaTable(Model, BaseDatasource):
     query_language = 'sql'
     metric_class = SqlMetric
     column_class = TableColumn
+    owner_class = security_manager.user_model
 
     __tablename__ = 'tables'
     __table_args__ = (UniqueConstraint('database_id', 'table_name'),)
@@ -262,11 +255,7 @@ class SqlaTable(Model, BaseDatasource):
     main_dttm_col = Column(String(250))
     database_id = Column(Integer, ForeignKey('dbs.id'), nullable=False)
     fetch_values_predicate = Column(String(1000))
-    user_id = Column(Integer, ForeignKey('ab_user.id'))
-    owner = relationship(
-        security_manager.user_model,
-        backref='tables',
-        foreign_keys=[user_id])
+    owners = relationship(owner_class, secondary=sqlatable_user, backref='tables')
     database = relationship(
         'Database',
         backref=backref('tables', cascade='all, delete-orphan'),
@@ -281,7 +270,9 @@ class SqlaTable(Model, BaseDatasource):
     export_fields = (
         'table_name', 'main_dttm_col', 'description', 'default_endpoint',
         'database_id', 'offset', 'cache_timeout', 'schema',
-        'sql', 'params', 'template_params', 'filter_select_enabled')
+        'sql', 'params', 'template_params', 'filter_select_enabled',
+        'fetch_values_predicate',
+    )
     update_from_object_fields = [
         f for f in export_fields if f not in ('table_name', 'database_id')]
     export_parent = 'database'
@@ -318,8 +309,8 @@ class SqlaTable(Model, BaseDatasource):
     @property
     def link(self):
         name = escape(self.name)
-        anchor = '<a target="_blank" href="{self.explore_url}">{name}</a>'
-        return Markup(anchor.format(**locals()))
+        anchor = f'<a target="_blank" href="{self.explore_url}">{name}</a>'
+        return Markup(anchor)
 
     @property
     def schema_perm(self):
@@ -377,7 +368,10 @@ class SqlaTable(Model, BaseDatasource):
     def external_metadata(self):
         cols = self.database.get_columns(self.table_name, schema=self.schema)
         for col in cols:
-            col['type'] = '{}'.format(col['type'])
+            try:
+                col['type'] = str(col['type'])
+            except CompileError:
+                col['type'] = 'UNKNOWN'
         return cols
 
     @property
@@ -410,6 +404,7 @@ class SqlaTable(Model, BaseDatasource):
             d['granularity_sqla'] = utils.choicify(self.dttm_cols)
             d['time_grain_sqla'] = grains
             d['main_dttm_col'] = self.main_dttm_col
+            d['fetch_values_predicate'] = self.fetch_values_predicate
         return d
 
     def values_for_column(self, column_name, limit=10000):
@@ -776,13 +771,13 @@ class SqlaTable(Model, BaseDatasource):
     def query(self, query_obj):
         qry_start_dttm = datetime.now()
         sql = self.get_query_str(query_obj)
-        status = QueryStatus.SUCCESS
+        status = utils.QueryStatus.SUCCESS
         error_message = None
         df = None
         try:
             df = self.database.get_df(sql, self.schema)
         except Exception as e:
-            status = QueryStatus.FAILED
+            status = utils.QueryStatus.FAILED
             logging.exception(e)
             error_message = (
                 self.database.db_engine_spec.extract_error_message(e))
@@ -846,7 +841,6 @@ class SqlaTable(Model, BaseDatasource):
             self.columns.append(dbcol)
             if not any_date_col and dbcol.is_time:
                 any_date_col = col.name
-            metrics += dbcol.get_metrics().values()
 
         metrics.append(M(
             metric_name='count',
@@ -881,7 +875,7 @@ class SqlaTable(Model, BaseDatasource):
         def lookup_database(table):
             return db.session.query(Database).filter_by(
                 database_name=table.params_dict['database_name']).one()
-        return import_util.import_datasource(
+        return import_datasource.import_datasource(
             db.session, i_datasource, lookup_database, lookup_sqlatable,
             import_time)
 

@@ -1,3 +1,19 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 # pylint: disable=C,R,W
 """This module contains the 'Viz' objects
 
@@ -31,9 +47,10 @@ from past.builtins import basestring
 import polyline
 import simplejson as json
 
-from superset import app, cache, get_css_manifest_files, utils
+from superset import app, cache, get_css_manifest_files
 from superset.exceptions import NullValueException, SpatialException
-from superset.utils import (
+from superset.utils import core as utils
+from superset.utils.core import (
     DTTM_ALIAS,
     JS_MAX_INTEGER,
     merge_extra_filters,
@@ -278,7 +295,9 @@ class BaseViz(object):
         # default order direction
         order_desc = form_data.get('order_desc', True)
 
-        since, until = utils.get_since_until(form_data)
+        since, until = utils.get_since_until(form_data.get('time_range'),
+                                             form_data.get('since'),
+                                             form_data.get('until'))
         time_shift = form_data.get('time_shift', '')
         self.time_shift = utils.parse_human_timedelta(time_shift)
         from_dttm = None if since is None else (since - self.time_shift)
@@ -442,7 +461,6 @@ class BaseViz(object):
                     logging.warning('Could not cache key {}'.format(cache_key))
                     logging.exception(e)
                     cache.delete(cache_key)
-
         return {
             'cache_key': self._any_cache_key,
             'cached_dttm': self._any_cached_dttm,
@@ -465,6 +483,11 @@ class BaseViz(object):
             sort_keys=sort_keys,
         )
 
+    def payload_json_and_has_error(self, payload):
+        has_error = payload.get('status') == utils.QueryStatus.FAILED or \
+            payload.get('error') is not None
+        return self.json_dumps(payload), has_error
+
     @property
     def data(self):
         """This is the data object serialized to the js layer"""
@@ -482,7 +505,7 @@ class BaseViz(object):
         return df.to_csv(index=include_index, **config.get('CSV_EXPORT'))
 
     def get_data(self, df):
-        return self.get_df().to_dict(orient='records')
+        return df.to_dict(orient='records')
 
     @property
     def json_data(self):
@@ -588,14 +611,11 @@ class TableViz(BaseViz):
         return data
 
     def json_dumps(self, obj, sort_keys=False):
-        if self.form_data.get('all_columns'):
-            return json.dumps(
-                obj,
-                default=utils.json_iso_dttm_ser,
-                sort_keys=sort_keys,
-                ignore_nan=True)
-        else:
-            return super(TableViz, self).json_dumps(obj)
+        return json.dumps(
+            obj,
+            default=utils.json_iso_dttm_ser,
+            sort_keys=sort_keys,
+            ignore_nan=True)
 
 
 class TimeTableViz(BaseViz):
@@ -782,12 +802,17 @@ class CalHeatmapViz(BaseViz):
         data = {}
         records = df.to_dict('records')
         for metric in self.metric_labels:
-            data[metric] = {
-                str(obj[DTTM_ALIAS].value / 10**9): obj.get(metric)
-                for obj in records
-            }
+            values = {}
+            for obj in records:
+                v = obj[DTTM_ALIAS]
+                if hasattr(v, 'value'):
+                    v = v.value
+                values[str(v / 10**9)] = obj.get(metric)
+            data[metric] = values
 
-        start, end = utils.get_since_until(form_data)
+        start, end = utils.get_since_until(form_data.get('time_range'),
+                                           form_data.get('since'),
+                                           form_data.get('until'))
         if not start or not end:
             raise Exception('Please provide both time bounds (Since and Until)')
         domain = form_data.get('domain_granularity')
@@ -1458,6 +1483,16 @@ class HistogramViz(BaseViz):
         d['groupby'] = []
         return d
 
+    def labelify(self, keys, column):
+        if isinstance(keys, str):
+            keys = (keys,)
+        # removing undesirable characters
+        labels = [re.sub(r'\W+', r'_', k) for k in keys]
+        if len(self.columns) > 1 or not self.groupby:
+            # Only show numeric column in label if there are many
+            labels = [column] + labels
+        return '__'.join(labels)
+
     def get_data(self, df):
         """Returns the chart data"""
         chart_data = []
@@ -1466,14 +1501,10 @@ class HistogramViz(BaseViz):
         else:
             groups = [((), df)]
         for keys, data in groups:
-            if isinstance(keys, str):
-                keys = (keys,)
-            # removing undesirable characters
-            keys = [re.sub(r'\W+', r'_', k) for k in keys]
             chart_data.extend([{
-                'key': '__'.join([c] + keys),
-                'values': data[c].tolist()}
-                for c in self.columns])
+                'key': self.labelify(keys, column),
+                'values': data[column].tolist()}
+                for column in self.columns])
         return chart_data
 
 
@@ -1770,40 +1801,49 @@ class FilterBoxViz(BaseViz):
     is_timeseries = False
     credits = 'a <a href="https://github.com/airbnb/superset">Superset</a> original'
     cache_type = 'get_data'
+    filter_row_limit = 1000
 
     def query_obj(self):
         return None
 
     def run_extra_queries(self):
-        qry = self.filter_query_obj()
-        filters = [g for g in self.form_data['groupby']]
+        qry = super(FilterBoxViz, self).query_obj()
+        filters = self.form_data.get('filter_configs') or []
+        qry['row_limit'] = self.filter_row_limit
         self.dataframes = {}
         for flt in filters:
-            qry['groupby'] = [flt]
+            col = flt.get('column')
+            if not col:
+                raise Exception(_(
+                    'Invalid filter configuration, please select a column'))
+            qry['groupby'] = [col]
+            metric = flt.get('metric')
+            qry['metrics'] = [metric] if metric else []
             df = self.get_df_payload(query_obj=qry).get('df')
-            self.dataframes[flt] = df
-
-    def filter_query_obj(self):
-        qry = super(FilterBoxViz, self).query_obj()
-        groupby = self.form_data.get('groupby')
-        if len(groupby) < 1 and not self.form_data.get('date_filter'):
-            raise Exception(_('Pick at least one filter field'))
-        qry['metrics'] = [
-            self.form_data['metric']]
-        return qry
+            self.dataframes[col] = df
 
     def get_data(self, df):
+        filters = self.form_data.get('filter_configs') or []
         d = {}
-        filters = [g for g in self.form_data['groupby']]
         for flt in filters:
-            df = self.dataframes[flt]
-            d[flt] = [{
-                'id': row[0],
-                'text': row[0],
-                'filter': flt,
-                'metric': row[1]}
-                for row in df.itertuples(index=False)
-            ]
+            col = flt.get('column')
+            metric = flt.get('metric')
+            df = self.dataframes.get(col)
+            if metric:
+                df = df.sort_values(metric, ascending=flt.get('asc'))
+                d[col] = [{
+                    'id': row[0],
+                    'text': row[0],
+                    'metric': row[1]}
+                    for row in df.itertuples(index=False)
+                ]
+            else:
+                df = df.sort_values(col, ascending=flt.get('asc'))
+                d[col] = [{
+                    'id': row[0],
+                    'text': row[0]}
+                    for row in df.itertuples(index=False)
+                ]
         return d
 
 
@@ -1821,6 +1861,9 @@ class IFrameViz(BaseViz):
 
     def get_df(self, query_obj=None):
         return None
+
+    def get_data(self, df):
+        return {}
 
 
 class ParallelCoordinatesViz(BaseViz):
@@ -2086,10 +2129,10 @@ class BaseDeckGLViz(BaseViz):
             return None
         try:
             p = Point(s)
+            return (p.latitude, p.longitude)  # pylint: disable=no-member
         except Exception:
             raise SpatialException(
                 _('Invalid spatial point encountered: %s' % s))
-        return (p.latitude, p.longitude)
 
     @staticmethod
     def reverse_geohash_decode(geohash_code):
@@ -2318,6 +2361,7 @@ class DeckPathViz(BaseDeckGLViz):
     viz_type = 'deck_path'
     verbose_name = _('Deck.gl - Paths')
     deck_viz_key = 'path'
+    is_timeseries = True
     deser_map = {
         'json': json.loads,
         'polyline': polyline.decode,
@@ -2325,8 +2369,11 @@ class DeckPathViz(BaseDeckGLViz):
     }
 
     def query_obj(self):
+        fd = self.form_data
+        self.is_timeseries = fd.get('time_grain_sqla') or fd.get('granularity')
         d = super(DeckPathViz, self).query_obj()
-        line_col = self.form_data.get('line_column')
+        self.metric = fd.get('metric')
+        line_col = fd.get('line_column')
         if d['metrics']:
             self.has_metrics = True
             d['groupby'].append(line_col)
@@ -2346,7 +2393,12 @@ class DeckPathViz(BaseDeckGLViz):
         d[self.deck_viz_key] = path
         if line_type != 'geohash':
             del d[line_column]
+        d['__timestamp'] = d.get(DTTM_ALIAS) or d.get('__time')
         return d
+
+    def get_data(self, df):
+        self.metric_label = self.get_metric_label(self.metric)
+        return super(DeckPathViz, self).get_data(df)
 
 
 class DeckPolygon(DeckPathViz):
@@ -2356,6 +2408,26 @@ class DeckPolygon(DeckPathViz):
     viz_type = 'deck_polygon'
     deck_viz_key = 'polygon'
     verbose_name = _('Deck.gl - Polygon')
+
+    def query_obj(self):
+        fd = self.form_data
+        self.elevation = (
+            fd.get('point_radius_fixed') or {'type': 'fix', 'value': 500})
+        return super(DeckPolygon, self).query_obj()
+
+    def get_metrics(self):
+        metrics = [self.form_data.get('metric')]
+        if self.elevation.get('type') == 'metric':
+            metrics.append(self.elevation.get('value'))
+        return [metric for metric in metrics if metric]
+
+    def get_properties(self, d):
+        super(DeckPolygon, self).get_properties(d)
+        fd = self.form_data
+        elevation = fd['point_radius_fixed']['value']
+        type_ = fd['point_radius_fixed']['type']
+        d['elevation'] = d.get(elevation) if type_ == 'metric' else elevation
+        return d
 
 
 class DeckHex(BaseDeckGLViz):

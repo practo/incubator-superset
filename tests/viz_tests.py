@@ -1,3 +1,19 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from datetime import datetime
 import uuid
 
@@ -6,7 +22,7 @@ import pandas as pd
 
 from superset import app
 from superset.exceptions import SpatialException
-from superset.utils import DTTM_ALIAS
+from superset.utils.core import DTTM_ALIAS
 import superset.viz as viz
 from .base_tests import SupersetTestCase
 from .utils import load_fixture
@@ -996,7 +1012,7 @@ class BaseDeckGLVizTestCase(SupersetTestCase):
         with self.assertRaises(SpatialException):
             test_viz_deckgl.parse_coordinates('fldkjsalkj,fdlaskjfjadlksj')
 
-    @patch('superset.utils.uuid.uuid4')
+    @patch('superset.utils.core.uuid.uuid4')
     def test_filter_nulls(self, mock_uuid4):
         mock_uuid4.return_value = uuid.UUID('12345678123456781234567812345678')
         test_form_data = {

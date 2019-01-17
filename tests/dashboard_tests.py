@@ -1,3 +1,19 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """Unit tests for Superset"""
 import json
 import unittest
@@ -11,8 +27,6 @@ from .base_tests import SupersetTestCase
 
 
 class DashboardTests(SupersetTestCase):
-
-    requires_examples = True
 
     def __init__(self, *args, **kwargs):
         super(DashboardTests, self).__init__(*args, **kwargs)
@@ -205,7 +219,7 @@ class DashboardTests(SupersetTestCase):
         dash = db.session.query(models.Dashboard).filter_by(
             slug='births').first()
         new_slice = db.session.query(models.Slice).filter_by(
-            slice_name='Mapbox Long/Lat').first()
+            slice_name='Energy Force Layout').first()
         existing_slice = db.session.query(models.Slice).filter_by(
             slice_name='Name Cloud').first()
         data = {
@@ -219,7 +233,7 @@ class DashboardTests(SupersetTestCase):
         dash = db.session.query(models.Dashboard).filter_by(
             slug='births').first()
         new_slice = db.session.query(models.Slice).filter_by(
-            slice_name='Mapbox Long/Lat').first()
+            slice_name='Energy Force Layout').first()
         assert new_slice in dash.slices
         assert len(set(dash.slices)) == len(dash.slices)
 
@@ -227,7 +241,7 @@ class DashboardTests(SupersetTestCase):
         dash = db.session.query(models.Dashboard).filter_by(
             slug='births').first()
         dash.slices = [
-            o for o in dash.slices if o.slice_name != 'Mapbox Long/Lat']
+            o for o in dash.slices if o.slice_name != 'Energy Force Layout']
         db.session.commit()
 
     def test_remove_slices(self, username='admin'):

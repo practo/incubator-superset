@@ -1,9 +1,27 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Button, Panel } from 'react-bootstrap';
 import Select from 'react-virtualized-select';
-import visTypes from '../explore/visTypes';
-import { t } from '../locales';
+import { t } from '@superset-ui/translation';
+import { getChartMetadataRegistry } from '@superset-ui/chart';
 
 const propTypes = {
   datasources: PropTypes.arrayOf(PropTypes.shape({
@@ -17,11 +35,13 @@ const styleSelectWidth = { width: 300 };
 export default class AddSliceContainer extends React.PureComponent {
   constructor(props) {
     super(props);
-    const visTypeKeys = Object.keys(visTypes);
-    this.vizTypeOptions = visTypeKeys.map(vt => ({ label: visTypes[vt].label, value: vt }));
     this.state = {
       visType: 'table',
     };
+
+    this.changeDatasource = this.changeDatasource.bind(this);
+    this.changeVisType = this.changeVisType.bind(this);
+    this.gotoSlice = this.gotoSlice.bind(this);
   }
 
   exploreUrl() {
@@ -54,6 +74,12 @@ export default class AddSliceContainer extends React.PureComponent {
   }
 
   render() {
+    const types = getChartMetadataRegistry().entries()
+      .map(({ key, value }) => ({
+        value: key,
+        label: value.name,
+      }));
+
     return (
       <div className="container">
         <Panel header={<h3>{t('Create a new chart')}</h3>}>
@@ -64,7 +90,7 @@ export default class AddSliceContainer extends React.PureComponent {
                 clearable={false}
                 style={styleSelectWidth}
                 name="select-datasource"
-                onChange={this.changeDatasource.bind(this)}
+                onChange={this.changeDatasource}
                 options={this.props.datasources}
                 placeholder={t('Choose a datasource')}
                 value={this.state.datasourceValue}
@@ -86,8 +112,8 @@ export default class AddSliceContainer extends React.PureComponent {
               clearable={false}
               name="select-vis-type"
               style={styleSelectWidth}
-              onChange={this.changeVisType.bind(this)}
-              options={this.vizTypeOptions}
+              onChange={this.changeVisType}
+              options={types}
               placeholder={t('Choose a visualization type')}
               value={this.state.visType}
             />
@@ -96,7 +122,7 @@ export default class AddSliceContainer extends React.PureComponent {
           <Button
             bsStyle="primary"
             disabled={this.isBtnDisabled()}
-            onClick={this.gotoSlice.bind(this)}
+            onClick={this.gotoSlice}
           >
             {t('Create new chart')}
           </Button>

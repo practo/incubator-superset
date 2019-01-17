@@ -98,9 +98,9 @@ meets these guidelines:
 7.  If you are asked to update your pull request with some changes there's
     no need to create a new one. Push your changes to the same branch.
 
-## Local development
+## Setup Local Environment for Development
 
-First, [fork the repository on GitHub](https://help.github.com/articles/about-forks/), then clone it. You can clone the main repository directly instead, but you won't be able to send pull requests.
+First, [fork the repository on GitHub](https://help.github.com/articles/about-forks/), then clone it. You can clone the main repository directly, but you won't be able to send pull requests.
 
 ```bash
 git clone git@github.com:your-username/incubator-superset.git
@@ -153,7 +153,8 @@ and start a simple web server so we can check out the docs in a browser:
 
 ```bash
 cd docs/_build/html
-python -m SimpleHTTPServer
+python -m http.server # Python2 users should use SimpleHTTPServer
+
 ```
 
 This will start a small Python web server listening on port 8000. Point your
@@ -201,11 +202,12 @@ Make sure your machine meets the [OS dependencies](https://superset.incubator.ap
 
 ```bash
 # Create a virtual environemnt and activate it (recommended)
-virtualenv venv
+virtualenv -p python3 venv # setup a python3.6 virtualenv
 source venv/bin/activate
 
 # Install external dependencies
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 # Install Superset in editable (development) mode
 pip install -e .
 
@@ -221,8 +223,11 @@ superset init
 # Load some data to play with
 superset load_examples
 
-# Start the Flask web server (but see below for frontend asset compilation)
-superset runserver -d
+# Start the Flask dev web server from inside the `superset` dir at port 8088
+# Note that your page may not have css at this point.
+# See instructions below how to build the front-end assets.
+cd superset
+FLASK_ENV=development flask run -p 8088 --with-threads --reload --debugger
 ```
 
 #### Logging to the browser console
@@ -230,7 +235,7 @@ superset runserver -d
 This feature is only available on Python 3. When debugging your application, you can have the server logs sent directly to the browser console:
 
 ```bash
-superset runserver -d --console-log
+FLASK_ENV=development flask run -p 8088 --with-threads --reload --debugger --console-log
 ```
 
 You can log anything to the browser console, including objects:
@@ -241,11 +246,15 @@ app.logger.error('An exception occurred!')
 app.logger.info(form_data)
 ```
 
-### Frontend assets
+### Frontend Assets
 
 Frontend assets (JavaScript, CSS, and images) must be compiled in order to properly display the web UI. The `superset/assets` directory contains all NPM-managed front end assets. Note that there are additional frontend assets bundled with Flask-Appbuilder (e.g. jQuery and bootstrap); these are not managed by NPM, and may be phased out in the future.
 
 First, be sure you are using recent versions of NodeJS and npm. Using [nvm](https://github.com/creationix/nvm) to manage them is recommended.
+
+#### Prerequisite
+
+#### Installing Dependencies
 
 Install third-party dependencies listed in `package.json`:
 
@@ -253,29 +262,13 @@ Install third-party dependencies listed in `package.json`:
 # From the root of the repository
 cd superset/assets
 
-# Install yarn, a replacement for `npm install`
-npm install -g yarn
-
-# Install dependencies
-yarn install
+# Install dependencies from `package-lock.json`
+npm ci
 ```
 
-Finally, to compile frontend assets, run any of the following commands.
+#### Building
 
-```bash
-# Start a watcher that recompiles your assets as you modify them (reload your browser to see changes)
-npm run dev
-
-# Compile the Javascript and CSS in production/optimized mode for official releases
-npm run prod
-
-# Copy a conf file from the frontend to the backend
-npm run sync-backend
-```
-
-#### Webpack dev server
-
-Alternatively, you can run the Webpack dev server, which runs on port 9000 and proxies non-asset requests to the Flask server on port 8088. After pointing your browser to it, updates to asset sources will be reflected in-browser without a refresh.
+You can run the Webpack dev server (in a separate terminal from Flask), which runs on port 9000 and proxies non-asset requests to the Flask server on port 8088. After pointing your browser to it, updates to asset sources will be reflected in-browser without a refresh.
 
 ```bash
 # Run the dev server
@@ -288,24 +281,69 @@ npm run dev-server -- --port=9001
 npm run dev-server -- --supersetPort=8081
 ```
 
-#### Upgrading NPM packages
+Alternatively you can use one of the following commands.
 
-After adding or upgrading an NPM package by changing `package.json`, you must run `yarn install`, which will regenerate the `yarn.lock` file. Then, be sure to commit the new `yarn.lock` so that other users' builds are reproducible. See [the Yarn docs](https://yarnpkg.com/blog/2016/11/24/lockfiles-for-all/) for more information.
+```bash
+# Start a watcher that recompiles your assets as you modify them (but have to manually reload your browser to see changes.)
+npm run dev
+
+# Compile the Javascript and CSS in production/optimized mode for official releases
+npm run prod
+
+# Copy a conf file from the frontend to the backend
+npm run sync-backend
+```
+
+#### Updating NPM packages
+
+Use npm in the prescribed way, making sure that
+`superset/assets/package-lock.json` is updated according to `npm`-prescribed
+best practices.
+
+#### Feature flags
+
+Superset supports a server-wide feature flag system, which eases the incremental development of features. To add a new feature flag, simply modify `superset_config.py` with something like the following:
+```
+FEATURE_FLAGS = {
+    'SCOPED_FILTER': True,
+}
+```
+If you want to use the same flag in the client code, also add it to the FeatureFlag TypeScript enum in `superset/assets/src/featureFlags.ts`. For example,
+```
+export enum FeatureFlag {
+  SCOPED_FILTER = 'SCOPED_FILTER',
+}
+```
+
+## Linting
+
+Lint the project with:
+
+```bash
+# for python
+tox -e flake8
+
+# for javascript
+cd superset/assets
+npm ci
+npm run lint
+```
 
 ## Testing
 
-All tests are carried out in [tox](http://tox.readthedocs.io/en/latest/index.html)
-a standardized testing framework mostly for Python (though we also used it for Javascript).
+### Python Testing
+
+All python tests are carried out in [tox](http://tox.readthedocs.io/en/latest/index.html)
+a standardized testing framework.
 All python tests can be run with any of the tox [environments](http://tox.readthedocs.io/en/latest/example/basic.html#a-simple-tox-ini-default-environments), via,
 
 ```bash
 tox -e <environment>
 ```
 
-i.e.,
+For example,
 
 ```bash
-tox -e py27
 tox -e py36
 ```
 
@@ -325,17 +363,16 @@ Note that the test environment uses a temporary directory for defining the
 SQLite databases which will be cleared each time before the group of test
 commands are invoked.
 
-### JavaScript testing
+### JavaScript Testing
 
 We use [Jest](https://jestjs.io/) and [Enzyme](http://airbnb.io/enzyme/) to test Javascript. Tests can be run with:
 
 ```bash
-cd superset/assets/spec
-npm install
+cd superset/assets
 npm run test
 ```
 
-### Integration testing
+### Integration Testing
 
 We use [Cypress](https://www.cypress.io/) for integration tests. Tests can be run by `tox -e cypress`. To open Cypress and explore tests first setup and run test server:
 
@@ -356,18 +393,6 @@ npm run build
 npm run cypress run
 ```
 
-### Linting
-
-Lint the project with:
-
-```bash
-# for python
-tox -e flake8
-
-# for javascript
-tox -e eslint
-```
-
 ## Translating
 
 We use [Babel](http://babel.pocoo.org/en/latest/) to translate Superset. In Python files, we import the magic `_` function using:
@@ -379,10 +404,10 @@ from flask_babel import lazy_gettext as _
 then wrap our translatable strings with it, e.g. `_('Translate me')`. During extraction, string literals passed to `_` will be added to the generated `.po` file for each language for later translation.
 At runtime, the `_` function will return the translation of the given string for the current language, or the given string itself if no translation is available.
 
-In JavaScript, the technique is similar: we import `t` (simple translation), `tn` (translation containing a number), and `TCT` (translating entire React Components).
+In JavaScript, the technique is similar: we import `t` (simple translation), `tn` (translation containing a number).
 
 ```javascript
-import {t, tn, TCT} from locales;
+import { t, tn } from '@superset-ui/translation';
 ```
 
 ### Enabling language selection
@@ -406,8 +431,11 @@ fabmanager babel-extract --target superset/translations --output superset/transl
 ```
 
 You can then translate the strings gathered in files located under
-`superset/translation`, where there's one per language. For the translations
-to take effect:
+`superset/translation`, where there's one per language. You can use [Poedit](https://poedit.net/features) 
+to translate the `po` file more conveniently.
+There are some [tutorials in the wiki](https://wiki.lxde.org/en/Translate_*.po_files_with_Poedit).
+
+For the translations to take effect:
 
 ```bash
 # In the case of JS translation, we need to convert the PO file into a JSON file, and we need the global download of the npm package po2json.
@@ -421,6 +449,8 @@ If you get errors running `po2json`, you might be running the Ubuntu package wit
 name, rather than the NodeJS package (they have a different format for the arguments). If
 there is a conflict, you may need to update your `PATH` environment variable or fully qualify
 the executable path (e.g. `/usr/local/bin/po2json` instead of `po2json`).
+If you get a lot of `[null,***]` in `messages.json`, just delete all the `null,`.
+For example, `"year":["年"]` is correct while `"year":[null,"年"]`is incorrect.
 
 ### Creating a new language dictionary
 
