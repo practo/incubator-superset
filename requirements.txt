@@ -70,3 +70,4 @@ vine==1.1.4               # via amqp
 webencodings==0.5.1       # via bleach
 werkzeug==0.14.1          # via flask
 wtforms==2.2.1            # via flask-wtf
+pymssql==2.1.4

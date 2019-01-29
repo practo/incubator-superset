@@ -229,7 +229,7 @@ class FilterBox extends React.Component {
     }
     return (
       <OnPasteSelect
-        placeholder={t('Select [%s]', label)}
+        placeholder={t('')}
         key={key}
         multi={filterConfig.multiple}
         clearable={filterConfig.clearable}
@@ -241,7 +241,7 @@ class FilterBox extends React.Component {
             `lightgrey ${perc}%, rgba(0,0,0,0) ${perc}%`
           );
           const style = {
-            backgroundImage,
+            //backgroundImage,
             padding: '2px 5px',
           };
           return { value: opt.id, label: opt.id, style };

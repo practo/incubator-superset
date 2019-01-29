@@ -45,7 +45,9 @@ class SaveModal extends React.Component {
     this.state = {
       saveToDashboardId: null,
       newDashboardName: '',
+      newDashboardDesc: '',
       newSliceName: '',
+      newSliceDesc: '',
       dashboards: [],
       alert: null,
       action: props.can_overwrite ? 'overwrite' : 'saveas',
@@ -61,12 +63,18 @@ class SaveModal extends React.Component {
       case 'newSliceName':
         this.setState({ newSliceName: event.target.value });
         break;
+      case 'newSliceDesc':
+        this.setState({ newSliceDesc: event.target.value });
+        break;
       case 'saveToDashboardId':
         this.setState({ saveToDashboardId: event.value });
         this.changeDash('existing');
         break;
       case 'newDashboardName':
         this.setState({ newDashboardName: event.target.value });
+        break;
+      case 'newDashboardDesc':
+        this.setState({ newDashboardDesc: event.target.value });
         break;
       default:
         break;
@@ -84,6 +92,7 @@ class SaveModal extends React.Component {
     const sliceParams = {};
 
     let sliceName = null;
+    let sliceDesc = null;
     sliceParams.action = this.state.action;
     if (this.props.slice && this.props.slice.slice_id) {
       sliceParams.slice_id = this.props.slice.slice_id;
@@ -95,6 +104,13 @@ class SaveModal extends React.Component {
         return;
       }
       sliceParams.slice_name = sliceName;
+
+      sliceDesc = this.state.newSliceDesc;
+      if (sliceDesc === '') {
+        this.setState({ alert: t('Please enter a chart desc') });
+        return;
+      }
+      sliceParams.description = sliceDesc;
     } else {
       sliceParams.slice_name = this.props.slice.slice_name;
     }
@@ -102,6 +118,7 @@ class SaveModal extends React.Component {
     const addToDash = this.state.addToDash;
     sliceParams.add_to_dash = addToDash;
     let dashboard = null;
+    let dashboardDesc = null;
     switch (addToDash) {
       case 'existing':
         dashboard = this.state.saveToDashboardId;
@@ -118,6 +135,13 @@ class SaveModal extends React.Component {
           return;
         }
         sliceParams.new_dashboard_name = dashboard;
+
+        dashboardDesc = this.state.newDashboardDesc;
+        if (dashboardDesc === '') {
+          this.setState({ alert: t('Please enter a dashboard desc') });
+          return;
+        }
+        sliceParams.new_dashboard_desc = dashboardDesc;
         break;
       default:
         dashboard = null;
@@ -184,6 +208,13 @@ class SaveModal extends React.Component {
             onChange={this.onChange.bind(this, 'newSliceName')}
             onFocus={this.changeAction.bind(this, 'saveas')}
           />
+          <input
+            name="new_slice_desc"
+            placeholder={t('[chart desc ex: client name]')}
+            onChange={this.onChange.bind(this, 'newSliceDesc')}
+            className="form-control input-sm"
+            onFocus={this.changeAction.bind(this, 'saveas')}
+          />
 
           <br />
           <hr />
@@ -229,6 +260,14 @@ class SaveModal extends React.Component {
             onFocus={this.changeDash.bind(this, 'new')}
             placeholder={t('[dashboard name]')}
           />
+          <input
+            onChange={this.onChange.bind(this, 'newDashboardDesc')}
+            disabled={canNotSaveToDash}
+            onFocus={this.changeDash.bind(this, 'new')}
+            className="form-control input-sm"
+            placeholder={t('[dashboard desc ex: client name]')}
+          />
+
         </Modal.Body>
 
         <Modal.Footer>

@@ -31,7 +31,7 @@ const propTypes = {
   })).isRequired,
 };
 
-const styleSelectWidth = { width: 300 };
+const styleSelectWidth = { width: 600 };
 
 export default class AddSliceContainer extends React.PureComponent {
   constructor(props) {
