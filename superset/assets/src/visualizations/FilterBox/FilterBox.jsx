@@ -229,7 +229,7 @@ class FilterBox extends React.Component {
     }
     return (
       <OnPasteSelect
-        placeholder={t('')}
+        placeholder=""
         key={key}
         multi={filterConfig.multiple}
         clearable={filterConfig.clearable}
