@@ -73,6 +73,7 @@ ADMIN_ONLY_PERMISSIONS = {
     'can_override_role_permissions',
     'can_approve',
     'can_update_role',
+    'all_dashboard_access',
 }
 
 READ_ONLY_PERMISSION = {
@@ -83,6 +84,7 @@ READ_ONLY_PERMISSION = {
 ALPHA_ONLY_PERMISSIONS = set([
     'muldelete',
     'all_datasource_access',
+    'all_dashboard_access',
 ])
 
 OBJECT_SPEC_PERMISSIONS = set([
@@ -90,6 +92,7 @@ OBJECT_SPEC_PERMISSIONS = set([
     'schema_access',
     'datasource_access',
     'metric_access',
+    'dashboard_access',
 ])
 
 
@@ -110,11 +113,24 @@ class SupersetSecurityManager(SecurityManager):
         return self.can_access(
             'all_datasource_access', 'all_datasource_access')
 
+    def all_dashboard_access(self):
+        return self.can_access(
+            'all_dashboard_access', 'all_dashboard_access')
+
     def database_access(self, database):
         return (
             self.can_access(
                 'all_database_access', 'all_database_access') or
             self.can_access('database_access', database.perm)
+        )
+
+    def dashboard_access(self, dashboard):
+        return (
+            #self.all_dashboard_access(user=user) or
+            self.can_access(
+                'all_dashboard_access', 'all_dashboard_access') or
+            g.user in dashboard.owners or
+            self.can_access('dashboard_access', dashboard.perm)
         )
 
     def schema_access(self, datasource):
@@ -267,6 +283,7 @@ class SupersetSecurityManager(SecurityManager):
         # Global perms
         self.merge_perm('all_datasource_access', 'all_datasource_access')
         self.merge_perm('all_database_access', 'all_database_access')
+        self.merge_perm('all_dashboard_access', 'all_dashboard_access')
 
     def create_missing_perms(self):
         """Creates missing perms for datasources, schemas and metrics"""
@@ -295,6 +312,11 @@ class SupersetSecurityManager(SecurityManager):
         databases = db.session.query(models.Database).all()
         for database in databases:
             merge_pv('database_access', database.perm)
+
+        logging.info('Creating missing dashboard permissions.')
+        dashboards = db.session.query(models.Dashboard).all()
+        for dashboard in dashboards:
+            merge_pv('dashboard_access', dashboard.perm)
 
         logging.info('Creating missing metrics permissions')
         metrics = []
@@ -401,7 +423,19 @@ class SupersetSecurityManager(SecurityManager):
             'can_override_role_permissions', 'can_approve',
         }
 
+    def set_dashboard_perm(self, mapper, connection, target):
+        permission_name = 'dashboard_access'
+        self.set_security_perm(mapper, connection, target, permission_name)
+
     def set_perm(self, mapper, connection, target):  # noqa
+        logging.info(
+            'set_perm : %s %s %s',mapper,connection,target)
+        permission_name = 'datasource_access'
+        self.set_security_perm(mapper, connection, target, permission_name)
+
+    def set_security_perm(self, mapper, connection, target, permission_name):
+        logging.info(
+            'set_security_perm asfsdfsdfsdfdsfdsfsdfsdfsdfsdfsdfsdfs : %s',permission_name)
         if target.perm != target.get_perm():
             link_table = target.__table__
             connection.execute(
@@ -411,7 +445,7 @@ class SupersetSecurityManager(SecurityManager):
             )
 
         # add to view menu if not already exists
-        permission_name = 'datasource_access'
+        #permission_name = 'datasource_access'
         view_menu_name = target.get_perm()
         permission = self.find_permission(permission_name)
         view_menu = self.find_view_menu(view_menu_name)
