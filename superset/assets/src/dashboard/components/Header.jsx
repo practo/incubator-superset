@@ -216,21 +216,21 @@ class Header extends React.PureComponent {
 
     return (
       <div className="dashboard-header">
-        <div className="dashboard-component-header header-medium">
+        <div className="dashboard-component-header header-large">
           <EditableTitle
             title={dashboardTitle}
             canEdit={userCanEdit && editMode}
             onSaveTitle={this.handleChangeText}
             showTooltip={false}
           />
-          {/* <span className="favstar">
+          <span className="favstar">
             <FaveStar
               itemId={dashboardInfo.id}
               fetchFaveStar={this.props.fetchFaveStar}
               saveFaveStar={this.props.saveFaveStar}
               isStarred={this.props.isStarred}
             />
-          </span> */}
+          </span>
         </div>
 
         <div className="button-container">

@@ -100,16 +100,6 @@ class BigNumberVis extends React.PureComponent {
     return `${names} no_trendline`;
   }
 
-  componentDidMount() {
-      var items = document.getElementsByClassName("big_number  no_trendline");
-      for (var i=0; i < items.length; i++) {
-        if(items[i].closest("div.dashboard-component")) {
-          items[i].closest("div.dashboard-component").style.background="rgb(40, 50,140)";
-          items[i].closest("div.dashboard-component").style.color="white";
-        }
-      }
-   }
-
   createTemporaryContainer() {
     const container = document.createElement('div');
     container.className = this.getClassName();
@@ -141,7 +131,7 @@ class BigNumberVis extends React.PureComponent {
           height: maxHeight,
         }}
       >
-        <span style={{textAlign: 'center'}}>{text}</span>
+        <span>{text}</span>
       </div>
     );
   }
@@ -168,7 +158,6 @@ class BigNumberVis extends React.PureComponent {
         style={{
           fontSize,
           height: maxHeight,
-          textAlign: 'center',
         }}
       >
         {subheader}

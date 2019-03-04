@@ -125,17 +125,11 @@ describe('SaveModal', () => {
     wrapper.instance().onChange('newSliceName', mockEvent);
     expect(wrapper.state().newSliceName).toBe(mockEvent.target.value);
 
-    wrapper.instance().onChange('newSliceDesc', mockEvent);
-    expect(wrapper.state().newSliceDesc).toBe(mockEvent.target.value);
-
     wrapper.instance().onChange('saveToDashboardId', mockEvent);
     expect(wrapper.state().saveToDashboardId).toBe(mockEvent.value);
 
     wrapper.instance().onChange('newDashboardName', mockEvent);
     expect(wrapper.state().newDashboardName).toBe(mockEvent.target.value);
-
-    wrapper.instance().onChange('newDashboardDesc', mockEvent);
-    expect(wrapper.state().newDashboardDesc).toBe(mockEvent.target.value);
   });
 
   describe('saveOrOverwrite', () => {

@@ -37,7 +37,7 @@ export function fetchDashboards(userId) {
       .then(({ json }) => {
         const choices = json.pks.map((id, index) => ({
           value: id,
-          label: 'Title : ' + (json.result[index] || {}).dashboard_title + ', Desc : ' + (json.result[index] || {}).description,
+          label: (json.result[index] || {}).dashboard_title,
         }));
 
         return dispatch(fetchDashboardsSucceeded(choices));
