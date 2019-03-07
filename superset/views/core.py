@@ -140,6 +140,11 @@ class DashboardFilter(SupersetFilter):
             .join(Dash.owners)
             .filter(User.id == User.get_user_id())
         )
+        dashboard_ids_qry = (
+            db.session
+            .query(Dash.id)
+            .filter(Dash.perm.in_(dashboard_perms))
+        )
         # query = query.filter(
         #     or_(Dash.id.in_(
         #         db.session.query(Dash.id)
@@ -149,15 +154,14 @@ class DashboardFilter(SupersetFilter):
         #     ), Dash.id.in_(owner_ids_qry)),
         # )
         query = query.filter(
-            sqla.or_(
-            models.Dashboard.perm.in_(dashboard_perms)
-            , Dash.id.in_(
+            or_(Dash.id.in_(
                 db.session.query(Dash.id)
                 .distinct()
                 .join(Dash.slices)
                 .filter(Slice.id.in_(slice_ids_qry)),
-            ), Dash.id.in_(owner_ids_qry)),
+            ), Dash.id.in_(owner_ids_qry), Dash.id.in_(dashboard_ids_qry)),
         )
+
         return query
 
 
@@ -2171,12 +2175,12 @@ class Superset(BaseSupersetView):
                         'superset/request_access/?'
                         f'dashboard_id={dash.id}&')
 
-        # if not security_manager.dashboard_access(dash):
-        #     flash(
-        #         __(get_dashboard_access_error_msg(dash.dashboard_title)),
-        #         'danger')
-        #     return redirect(
-        #         'dashboard/list/')
+        if not security_manager.dashboard_access(dash):
+            flash(
+                __(get_dashboard_access_error_msg(dash.dashboard_title)),
+                'danger')
+            return redirect(
+                'dashboard/list/')
 
         dash_edit_perm = check_ownership(dash, raise_if_false=False) and \
             security_manager.can_access('can_save_dash', 'Superset')
