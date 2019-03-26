@@ -408,7 +408,7 @@ class Dashboard(Model, AuditMixinNullable, ImportMixin):
 
     def get_perm(self):
         return (
-            '[{obj.dashboard_title}].[{obj.description}].(id:{obj.id})').format(obj=self)
+            '[{obj.dashboard_title}].[{obj.description}].(dash_id:{obj.id})').format(obj=self)
 
     @property
     def table_names(self):
