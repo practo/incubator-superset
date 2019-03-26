@@ -648,8 +648,8 @@ class Dashboard(Model, AuditMixinNullable, ImportMixin):
         }, cls=utils.DashboardEncoder, indent=4)
 
 
-sqla.event.listen(Dashboard, 'after_insert', security_manager.set_dashboard_perm)
-sqla.event.listen(Dashboard, 'after_update', security_manager.set_dashboard_perm)
+sqla.event.listen(Dashboard, 'after_insert', security_manager.set_perm)
+#sqla.event.listen(Dashboard, 'after_update', security_manager.set_dashboard_perm)
 
 
 class Database(Model, AuditMixinNullable, ImportMixin):
