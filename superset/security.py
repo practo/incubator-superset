@@ -110,12 +110,13 @@ class SupersetSecurityManager(SecurityManager):
         return self._has_view_access(user, permission_name, view_name)
 
     def all_datasource_access(self):
-        return self.can_access(
-            'all_datasource_access', 'all_datasource_access')
+        return self.can_access('all_datasource_access', 'all_datasource_access')
+
+    def all_database_access(self):
+        return self.can_access('all_database_access', 'all_database_access')
 
     def all_dashboard_access(self):
-        return self.can_access(
-            'all_dashboard_access', 'all_dashboard_access')
+        return self.can_access('all_dashboard_access', 'all_dashboard_access')
 
     def database_access(self, database):
         return (
