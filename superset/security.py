@@ -424,19 +424,7 @@ class SupersetSecurityManager(SecurityManager):
             'can_override_role_permissions', 'can_approve',
         }
 
-    def set_dashboard_perm(self, mapper, connection, target):
-        permission_name = 'dashboard_access'
-        self.set_security_perm(mapper, connection, target, permission_name)
-
     def set_perm(self, mapper, connection, target):  # noqa
-        logging.info(
-            'set_perm : %s %s %s',mapper,connection,target)
-        permission_name = 'datasource_access'
-        self.set_security_perm(mapper, connection, target, permission_name)
-
-    def set_security_perm(self, mapper, connection, target, permission_name):
-        logging.info(
-            'set_security_perm asfsdfsdfsdfdsfdsfsdfsdfsdfsdfsdfsdfs : %s',permission_name)
         if target.perm != target.get_perm():
             link_table = target.__table__
             connection.execute(
@@ -444,6 +432,14 @@ class SupersetSecurityManager(SecurityManager):
                 .where(link_table.c.id == target.id)
                 .values(perm=target.get_perm()),
             )
+
+        permission_name = 'datasource_access'
+        from superset.models.core import Database, Dashboard
+        if mapper.class_ == Database:
+            permission_name = 'database_access'
+        elif mapper.class_ == Dashboard:
+            permission_name = 'dashboard_access'
+        logging.info('permission_name : %s',permission_name)
 
         # add to view menu if not already exists
         #permission_name = 'datasource_access'
